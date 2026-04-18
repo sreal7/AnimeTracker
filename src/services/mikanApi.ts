@@ -1,8 +1,48 @@
-import { Bangumi, Episode, SubtitleGroup } from '../types/bangumi';
+import { Bangumi, Episode, SubtitleGroup, SeasonGroup, SeasonKey } from '../types/bangumi';
 import axios from 'axios';
 
 // 蜜柑计划API服务
 const MIKAN_BASE_URL = 'https://mikanani.kas.pub';
+
+// 季度名称映射
+const seasonNames: Record<SeasonKey, string> = {
+  spring: '春季',
+  summer: '夏季',
+  fall: '秋季',
+  winter: '冬季',
+};
+
+// 根据年份和季度生成标题
+export const getSeasonTitle = (year: number, season: SeasonKey): string => {
+  return `${year}年${seasonNames[season]}番组`;
+};
+
+// 将番剧按季度分组
+export const groupBySeason = (bangumis: Bangumi[]): SeasonGroup[] => {
+  const groups: Map<string, SeasonGroup> = new Map();
+
+  bangumis.forEach((bangumi) => {
+    if (!bangumi.year || !bangumi.season) return;
+
+    const key = `${bangumi.year}-${bangumi.season}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        year: bangumi.year,
+        season: bangumi.season,
+        title: getSeasonTitle(bangumi.year, bangumi.season),
+        data: [],
+      });
+    }
+    groups.get(key)!.data.push(bangumi);
+  });
+
+  // 按年份和季度排序（最新的在前）
+  const seasonOrder: SeasonKey[] = ['winter', 'fall', 'summer', 'spring'];
+  return Array.from(groups.values()).sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return seasonOrder.indexOf(a.season) - seasonOrder.indexOf(b.season);
+  });
+};
 
 // 格式化文件大小
 const formatFileSize = (bytes: number): string => {
@@ -22,6 +62,8 @@ const mockBangumis: Bangumi[] = [
     airDate: '2024年10月',
     status: 'ongoing',
     description: '勇者一行人在打败魔王后，结束了长达十年的冒险旅程。精灵魔法使芙莉莲寿命长达千年，她将与人类的十年冒险视为短暂插曲，直到勇者辛美尔去世才真正理解人类。',
+    year: 2024,
+    season: 'fall',
   },
   {
     id: 2,
@@ -31,6 +73,8 @@ const mockBangumis: Bangumi[] = [
     airDate: '2025年1月',
     status: 'ongoing',
     description: '药师少女猫猫在后宫中运用医学知识解开各种谜团的故事。第二季继续讲述猫猫的宫廷冒险。',
+    year: 2025,
+    season: 'winter',
   },
   {
     id: 3,
@@ -40,6 +84,8 @@ const mockBangumis: Bangumi[] = [
     airDate: '2024年1月',
     status: 'ongoing',
     description: '冒险者莱俄斯和他的队伍在迷宫深处遭遇红龙，全员覆灭。莱俄斯的妹妹法琳被龙吃掉，为了救回妹妹，他们必须深入迷宫，用魔物做成料理来生存。',
+    year: 2024,
+    season: 'winter',
   },
   {
     id: 4,
@@ -49,6 +95,8 @@ const mockBangumis: Bangumi[] = [
     airDate: '2024年10月',
     status: 'ongoing',
     description: '故事发生在P王国，一个异端思想会被处以火刑的时代。人们仰望星空，探索地球运动的真理。',
+    year: 2024,
+    season: 'fall',
   },
   {
     id: 5,
@@ -58,6 +106,8 @@ const mockBangumis: Bangumi[] = [
     airDate: '2022年4月',
     status: 'completed',
     description: '网代慎平听闻青梅竹马小舟潮逝世的消息，回到故乡和歌山市日都岛参加葬礼。却发现岛上流传着"影子"的传说。',
+    year: 2022,
+    season: 'spring',
   },
   {
     id: 6,
@@ -67,6 +117,8 @@ const mockBangumis: Bangumi[] = [
     airDate: '2023年10月',
     status: 'ongoing',
     description: '黄昏为了执行任务组建了临时家庭，却意外收获了真正的亲情。阿尼亚的各种搞笑冒险。',
+    year: 2023,
+    season: 'fall',
   },
   {
     id: 7,
@@ -76,6 +128,8 @@ const mockBangumis: Bangumi[] = [
     airDate: '2022年4月',
     status: 'completed',
     description: '学生会长白银御行与副会长四宫辉夜之间的恋爱头脑战继续上演。',
+    year: 2022,
+    season: 'spring',
   },
   {
     id: 8,
@@ -85,6 +139,66 @@ const mockBangumis: Bangumi[] = [
     airDate: '2024年',
     status: 'completed',
     description: '人类与巨人的最终决战，艾伦与调查兵团的命运将如何落幕。',
+    year: 2024,
+    season: 'fall',
+  },
+  // 2026年春季番组（最新）
+  {
+    id: 9,
+    name: '石纪元 第四季',
+    cover: 'https://myanimelist.net/images/anime/1910/138282l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2026年4月',
+    status: 'ongoing',
+    description: '千空与科学团队继续在石纪元世界中探索科技的奥秘。',
+    year: 2026,
+    season: 'spring',
+  },
+  {
+    id: 10,
+    name: '从零开始的异世界生活 第三季',
+    cover: 'https://myanimelist.net/images/anime/1172/138006l.jpg',
+    subtitleGroup: 'ANIME/LoliHouse',
+    airDate: '2026年4月',
+    status: 'ongoing',
+    description: '昴继续在异世界中奋斗，面对新的挑战和考验。',
+    year: 2026,
+    season: 'spring',
+  },
+  {
+    id: 11,
+    name: '关于我转生变成史莱姆这档事 第三季',
+    cover: 'https://myanimelist.net/images/anime/1170/130292l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2026年4月',
+    status: 'ongoing',
+    description: '利姆露继续壮大他的魔国联邦，面对更多强敌。',
+    year: 2026,
+    season: 'spring',
+  },
+  // 2025年秋季番组
+  {
+    id: 12,
+    name: '鬼灭之刃 柱训练篇',
+    cover: 'https://myanimelist.net/images/anime/1000/142822l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2025年10月',
+    status: 'ongoing',
+    description: '柱们进行特训，为最终决战做准备。',
+    year: 2025,
+    season: 'fall',
+  },
+  // 2025年春季番组
+  {
+    id: 13,
+    name: '咒术回战 第二季 后半',
+    cover: 'https://myanimelist.net/images/anime/1120/138298l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2025年4月',
+    status: 'ongoing',
+    description: '咒术师与诅咒师的战斗进入白热化阶段。',
+    year: 2025,
+    season: 'spring',
   },
 ];
 
@@ -169,6 +283,12 @@ export const getHomeBangumis = async (): Promise<Bangumi[]> => {
 
   // 返回模拟数据
   return mockBangumis;
+};
+
+// 获取首页番剧分组列表（按季度分组）
+export const getHomeSeasonGroups = async (): Promise<SeasonGroup[]> => {
+  const bangumis = await getHomeBangumis();
+  return groupBySeason(bangumis);
 };
 
 // 获取番剧详情

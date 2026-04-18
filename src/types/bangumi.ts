@@ -8,6 +8,17 @@ export interface Bangumi {
   airDate: string;
   status: 'ongoing' | 'completed';
   description?: string;
+  year?: number;
+  season?: 'spring' | 'summer' | 'fall' | 'winter';
+}
+
+export type SeasonKey = 'spring' | 'summer' | 'fall' | 'winter';
+
+export interface SeasonGroup {
+  year: number;
+  season: SeasonKey;
+  title: string;
+  data: Bangumi[];
 }
 
 export interface Episode {
