@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationDefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { IconButton } from 'react-native-paper';
@@ -9,7 +9,7 @@ import { SubscriptionsScreen } from '../screens/SubscriptionsScreen';
 import { SearchScreen } from '../screens/SearchScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { BangumiDetailScreen } from '../screens/BangumiDetailScreen';
-import { useThemeColors } from '../theme';
+import { useThemeColors, useAppTheme } from '../theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -29,6 +29,9 @@ const MainTabs: React.FC = () => {
       screenOptions={({ route }) => ({
         tabBarActiveTintColor: colors.primary[500],
         tabBarInactiveTintColor: colors.text.muted,
+        tabBarStyle: {
+          backgroundColor: colors.background.card,
+        },
         tabBarIcon: ({ color }) => (
           <IconButton
             icon={TabIcons[route.name as keyof typeof TabIcons]}
@@ -64,9 +67,23 @@ const MainTabs: React.FC = () => {
 
 export const AppNavigator: React.FC = () => {
   const colors = useThemeColors();
+  const theme = useAppTheme();
+  const isDarkMode = theme.dark;
+
+  const navigationTheme = {
+    ...(isDarkMode ? NavigationDarkTheme : NavigationDefaultTheme),
+    colors: {
+      ...(isDarkMode ? NavigationDarkTheme.colors : NavigationDefaultTheme.colors),
+      background: colors.background.base,
+      card: colors.background.card,
+      text: colors.text.primary,
+      border: colors.border.primary,
+      primary: colors.primary[500],
+    },
+  };
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: { backgroundColor: colors.background.card },

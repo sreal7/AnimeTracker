@@ -3,6 +3,18 @@ import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Text, IconButton } from 'react-native-paper';
 import { Episode } from '../types/bangumi';
 import { useThemeColors, spacing, typography } from '../theme';
+import { copyMagnetLink, openTorrentDownload } from '../services/downloadService';
+
+const localSpacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  xxs: 2,
+};
+
+const localTypography = {
+  caption: { fontSize: 12 },
+};
 
 interface EpisodeItemProps {
   episode: Episode;
@@ -17,8 +29,8 @@ export const EpisodeItem: React.FC<EpisodeItemProps> = ({ episode }) => {
       alignItems: 'center',
       backgroundColor: colors.background.card,
       borderRadius: 8,
-      marginBottom: spacing.sm,
-      padding: spacing.sm,
+      marginBottom: localSpacing.sm,
+      padding: localSpacing.sm,
       borderWidth: 1,
       borderColor: colors.border.secondary,
     },
@@ -31,29 +43,27 @@ export const EpisodeItem: React.FC<EpisodeItemProps> = ({ episode }) => {
     },
     meta: {
       flexDirection: 'row',
-      marginTop: spacing.xs,
+      marginTop: localSpacing.xs,
     },
     metaItem: {
       color: colors.text.secondary,
-      fontSize: typography.caption.fontSize,
-      marginRight: spacing.sm,
+      fontSize: localTypography.caption.fontSize,
+      marginRight: localSpacing.sm,
     },
     actions: {
       flexDirection: 'row',
     },
     actionButton: {
-      marginLeft: spacing.sm,
+      marginLeft: localSpacing.sm,
     },
   }), [colors]);
 
-  const copyMagnet = () => {
-    Alert.alert('复制成功', '磁力链接已复制到剪贴板');
-    // 实际实现需要使用 Clipboard API
+  const handleCopyMagnet = () => {
+    copyMagnetLink(episode);
   };
 
-  const downloadTorrent = () => {
-    Alert.alert('下载', `即将下载: ${episode.title}`);
-    // 实际实现需要打开下载链接或调用下载服务
+  const handleDownload = () => {
+    openTorrentDownload(episode);
   };
 
   return (
@@ -75,14 +85,14 @@ export const EpisodeItem: React.FC<EpisodeItemProps> = ({ episode }) => {
           size={20}
           iconColor={colors.primary[500]}
           style={styles.actionButton}
-          onPress={copyMagnet}
+          onPress={handleCopyMagnet}
         />
         <IconButton
           icon="download"
           size={20}
           iconColor={colors.accent}
           style={styles.actionButton}
-          onPress={downloadTorrent}
+          onPress={handleDownload}
         />
       </View>
     </TouchableOpacity>

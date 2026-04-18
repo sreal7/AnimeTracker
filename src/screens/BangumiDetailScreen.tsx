@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, FlatList } from 'react-native';
-import { Text, Surface, Button, ActivityIndicator } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, FlatList, Alert } from 'react-native';
+import { Text, Surface, Button, ActivityIndicator, Divider } from 'react-native-paper';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { EpisodeItem } from '../components/EpisodeItem';
 import { getBangumiDetail, getBangumiEpisodes } from '../services/mikanApi';
+import { copyAllMagnetLinks } from '../services/downloadService';
+import { notifySubscribedBangumi } from '../services/notificationService';
 import { useSubscriptionStore } from '../stores/subscriptionStore';
 import { Bangumi, Episode } from '../types/bangumi';
 import { RootStackParamList } from '../types/navigation';
@@ -48,13 +50,23 @@ export const BangumiDetailScreen: React.FC = () => {
     }
   };
 
-  const handleSubscribeToggle = () => {
+  const handleSubscribeToggle = async () => {
     if (bangumi) {
       if (isSubscribed) {
         unsubscribe(bangumiId);
+        Alert.alert('取消订阅', `已取消订阅 ${bangumi.name}`);
       } else {
         subscribe(bangumi);
+        await notifySubscribedBangumi(bangumi);
       }
+    }
+  };
+
+  const handleBatchCopy = () => {
+    if (episodes.length > 0) {
+      copyAllMagnetLinks(episodes);
+    } else {
+      Alert.alert('提示', '暂无剧集可复制');
     }
   };
 
@@ -69,17 +81,18 @@ export const BangumiDetailScreen: React.FC = () => {
       alignItems: 'center',
     },
     header: {
-      padding: spacing.md,
       backgroundColor: colors.background.card,
     },
     coverContainer: {
-      height: 200,
-      marginBottom: spacing.md,
+      padding: spacing.md,
     },
     cover: {
       width: '100%',
       height: 200,
       borderRadius: 12,
+    },
+    infoSection: {
+      padding: spacing.md,
     },
     title: {
       color: colors.text.primary,
@@ -98,19 +111,36 @@ export const BangumiDetailScreen: React.FC = () => {
       color: colors.text.secondary,
       marginBottom: spacing.md,
     },
-    subscribeButton: {
-      marginBottom: spacing.md,
+    buttonRow: {
+      flexDirection: 'row',
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    button: {
+      flex: 1,
     },
     episodesSection: {
       marginTop: spacing.md,
+      padding: spacing.md,
+      backgroundColor: colors.background.card,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
     },
     sectionTitle: {
       color: colors.text.primary,
       fontWeight: '600',
-      marginBottom: spacing.sm,
     },
     episodeList: {
       marginTop: spacing.sm,
+    },
+    emptyText: {
+      color: colors.text.muted,
+      textAlign: 'center',
+      padding: spacing.lg,
     },
   }), [colors]);
 
@@ -125,7 +155,7 @@ export const BangumiDetailScreen: React.FC = () => {
   if (!bangumi) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>番剧信息不存在</Text>
+        <Text style={{ color: colors.text.secondary }}>番剧信息不存在</Text>
       </View>
     );
   }
@@ -143,50 +173,70 @@ export const BangumiDetailScreen: React.FC = () => {
           </View>
         )}
 
-        <Text variant="titleLarge" style={styles.title}>
-          {bangumi.name}
-        </Text>
+        <View style={styles.infoSection}>
+          <Text variant="titleLarge" style={styles.title}>
+            {bangumi.name}
+          </Text>
 
-        <View style={styles.meta}>
-          <Text variant="bodySmall" style={styles.metaItem}>
-            {bangumi.subtitleGroup}
-          </Text>
-          <Text variant="bodySmall" style={styles.metaItem}>
-            {bangumi.airDate}
-          </Text>
-          <Text variant="bodySmall" style={styles.metaItem}>
-            {bangumi.status === 'ongoing' ? '连载中' : '已完结'}
-          </Text>
+          <View style={styles.meta}>
+            <Text variant="bodySmall" style={styles.metaItem}>
+              {bangumi.subtitleGroup}
+            </Text>
+            <Text variant="bodySmall" style={styles.metaItem}>
+              {bangumi.airDate}
+            </Text>
+            <Text variant="bodySmall" style={styles.metaItem}>
+              {bangumi.status === 'ongoing' ? '连载中' : '已完结'}
+            </Text>
+          </View>
+
+          {bangumi.description && (
+            <Text variant="bodyMedium" style={styles.description}>
+              {bangumi.description}
+            </Text>
+          )}
+
+          <View style={styles.buttonRow}>
+            <Button
+              mode={isSubscribed ? 'outlined' : 'contained'}
+              onPress={handleSubscribeToggle}
+              style={styles.button}
+              icon={isSubscribed ? 'bookmark-remove' : 'bookmark-plus'}
+            >
+              {isSubscribed ? '取消订阅' : '订阅番剧'}
+            </Button>
+
+            {episodes.length > 0 && (
+              <Button
+                mode="outlined"
+                onPress={handleBatchCopy}
+                style={styles.button}
+                icon="content-copy"
+              >
+                批量复制
+              </Button>
+            )}
+          </View>
         </View>
-
-        {bangumi.description && (
-          <Text variant="bodyMedium" style={styles.description}>
-            {bangumi.description}
-          </Text>
-        )}
-
-        <Button
-          mode={isSubscribed ? 'outlined' : 'contained'}
-          onPress={handleSubscribeToggle}
-          style={styles.subscribeButton}
-          icon={isSubscribed ? 'bookmark-remove' : 'bookmark-plus'}
-        >
-          {isSubscribed ? '取消订阅' : '订阅番剧'}
-        </Button>
       </Surface>
 
       <View style={styles.episodesSection}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>
-          剧集列表 ({episodes.length})
-        </Text>
+        <View style={styles.sectionHeader}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            剧集列表 ({episodes.length})
+          </Text>
+        </View>
 
-        <FlatList
-          data={episodes}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => <EpisodeItem episode={item} />}
-          scrollEnabled={false}
-          contentContainerStyle={styles.episodeList}
-        />
+        {episodes.length > 0 ? (
+          <FlatList
+            data={episodes}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => <EpisodeItem episode={item} />}
+            scrollEnabled={false}
+          />
+        ) : (
+          <Text style={styles.emptyText}>暂无剧集数据</Text>
+        )}
       </View>
     </ScrollView>
   );

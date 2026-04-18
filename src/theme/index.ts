@@ -1,5 +1,6 @@
 import { colors, darkColors, spacing, typography } from './colors';
 import { MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
+import { useThemeStore } from '../stores/themeStore';
 
 export const lightTheme = {
   ...MD3LightTheme,
@@ -40,5 +41,11 @@ export const darkTheme = {
 export { colors, darkColors, spacing, typography };
 
 export const useThemeColors = () => {
-  return colors; // 暂时只用浅色主题
+  const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  return isDarkMode ? darkColors : colors;
+};
+
+export const useAppTheme = () => {
+  const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  return isDarkMode ? darkTheme : lightTheme;
 };
