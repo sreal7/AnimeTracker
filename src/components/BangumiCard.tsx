@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, IconButton } from 'react-native-paper';
 import { Bangumi } from '../types/bangumi';
@@ -25,6 +25,7 @@ interface BangumiCardProps {
 export const BangumiCard: React.FC<BangumiCardProps> = ({ bangumi, onPress }) => {
   const colors = useThemeColors();
   const isSubscribed = useSubscriptionStore((state) => state.isSubscribed(bangumi.id));
+  const [coverError, setCoverError] = useState(false);
 
   const styles = useMemo(() => StyleSheet.create({
     card: {
@@ -43,6 +44,15 @@ export const BangumiCard: React.FC<BangumiCardProps> = ({ bangumi, onPress }) =>
       width: 80,
       height: 120,
       borderRadius: 8,
+      backgroundColor: colors.background.elevated,
+    },
+    coverPlaceholder: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    coverPlaceholderText: {
+      color: colors.text.muted,
+      fontSize: 10,
     },
     info: {
       flex: 1,
@@ -78,17 +88,33 @@ export const BangumiCard: React.FC<BangumiCardProps> = ({ bangumi, onPress }) =>
     },
   }), [colors]);
 
+  const renderCover = () => {
+    if (coverError) {
+      return (
+        <View style={[styles.cover, styles.coverPlaceholder]}>
+          <Text style={styles.coverPlaceholderText}>暂无封面</Text>
+        </View>
+      );
+    }
+    return (
+      <Image
+        source={{ uri: bangumi.cover || 'https://via.placeholder.com/80x120/2d2d2d/e0e0e0?text=No+Image' }}
+        style={styles.cover}
+        contentFit="cover"
+        onError={() => setCoverError(true)}
+        transition={200}
+        cachePolicy="memory-disk"
+      />
+    );
+  };
+
   return (
     <TouchableOpacity
       style={styles.card}
       onPress={() => onPress(bangumi)}
       activeOpacity={0.7}
     >
-      <Image
-        source={{ uri: bangumi.cover || 'https://via.placeholder.com/80x120' }}
-        style={styles.cover}
-        contentFit="cover"
-      />
+      {renderCover()}
 
       <View style={styles.info}>
         <Text variant="titleMedium" style={styles.title} numberOfLines={2}>

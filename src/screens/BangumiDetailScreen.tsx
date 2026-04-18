@@ -1,16 +1,16 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, FlatList, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, SectionList, Alert } from 'react-native';
 import { Text, Surface, Button, ActivityIndicator, Divider } from 'react-native-paper';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { EpisodeItem } from '../components/EpisodeItem';
-import { getBangumiDetail, getBangumiEpisodes } from '../services/mikanApi';
+import { getBangumiDetail, getBangumiEpisodes, groupEpisodesBySubtitleGroup } from '../services/mikanApi';
 import { copyAllMagnetLinks } from '../services/downloadService';
 import { notifySubscribedBangumi } from '../services/notificationService';
 import { useSubscriptionStore } from '../stores/subscriptionStore';
-import { Bangumi, Episode } from '../types/bangumi';
+import { Bangumi, Episode, EpisodeGroup } from '../types/bangumi';
 import { RootStackParamList } from '../types/navigation';
-import { useThemeColors, spacing, typography } from '../theme';
+import { useThemeColors, spacing } from '../theme';
 import { Image } from 'expo-image';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -24,7 +24,9 @@ export const BangumiDetailScreen: React.FC = () => {
 
   const [bangumi, setBangumi] = useState<Bangumi | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [episodeGroups, setEpisodeGroups] = useState<EpisodeGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [coverError, setCoverError] = useState(false);
 
   const isSubscribed = useSubscriptionStore((state) => state.isSubscribed(bangumiId));
   const subscribe = useSubscriptionStore((state) => state.subscribe);
@@ -33,6 +35,13 @@ export const BangumiDetailScreen: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [bangumiId]);
+
+  // 剧集按字幕组分组
+  useEffect(() => {
+    if (episodes.length > 0) {
+      setEpisodeGroups(groupEpisodesBySubtitleGroup(episodes));
+    }
+  }, [episodes]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -43,6 +52,7 @@ export const BangumiDetailScreen: React.FC = () => {
       ]);
       setBangumi(bangumiData);
       setEpisodes(episodeData);
+      setCoverError(false);
     } catch (error) {
       console.error('Failed to load bangumi detail:', error);
     } finally {
@@ -90,6 +100,14 @@ export const BangumiDetailScreen: React.FC = () => {
       width: '100%',
       height: 200,
       borderRadius: 12,
+      backgroundColor: colors.background.elevated,
+    },
+    coverPlaceholder: {
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    coverPlaceholderText: {
+      color: colors.text.muted,
     },
     infoSection: {
       padding: spacing.md,
@@ -124,7 +142,7 @@ export const BangumiDetailScreen: React.FC = () => {
       padding: spacing.md,
       backgroundColor: colors.background.card,
     },
-    sectionHeader: {
+    sectionHeaderRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -134,8 +152,23 @@ export const BangumiDetailScreen: React.FC = () => {
       color: colors.text.primary,
       fontWeight: '600',
     },
-    episodeList: {
-      marginTop: spacing.sm,
+    episodeSectionHeader: {
+      padding: spacing.sm,
+      paddingLeft: spacing.md,
+      backgroundColor: colors.background.elevated,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border.secondary,
+    },
+    episodeSectionTitle: {
+      color: colors.text.primary,
+      fontWeight: '600',
+    },
+    episodeSectionCount: {
+      color: colors.text.secondary,
+      fontSize: 12,
+    },
+    episodeListContent: {
+      paddingBottom: spacing.sm,
     },
     emptyText: {
       color: colors.text.muted,
@@ -160,18 +193,32 @@ export const BangumiDetailScreen: React.FC = () => {
     );
   }
 
+  const renderCover = () => {
+    if (coverError || !bangumi.cover) {
+      return (
+        <View style={[styles.cover, styles.coverPlaceholder]}>
+          <Text style={styles.coverPlaceholderText}>封面加载失败</Text>
+        </View>
+      );
+    }
+    return (
+      <Image
+        source={{ uri: bangumi.cover }}
+        style={styles.cover}
+        contentFit="cover"
+        onError={() => setCoverError(true)}
+        transition={200}
+        cachePolicy="memory-disk"
+      />
+    );
+  };
+
   return (
     <ScrollView style={styles.container}>
       <Surface style={styles.header}>
-        {bangumi.cover && (
-          <View style={styles.coverContainer}>
-            <Image
-              source={{ uri: bangumi.cover }}
-              style={styles.cover}
-              contentFit="cover"
-            />
-          </View>
-        )}
+        <View style={styles.coverContainer}>
+          {renderCover()}
+        </View>
 
         <View style={styles.infoSection}>
           <Text variant="titleLarge" style={styles.title}>
@@ -221,18 +268,30 @@ export const BangumiDetailScreen: React.FC = () => {
       </Surface>
 
       <View style={styles.episodesSection}>
-        <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderRow}>
           <Text variant="titleMedium" style={styles.sectionTitle}>
             剧集列表 ({episodes.length})
           </Text>
         </View>
 
-        {episodes.length > 0 ? (
-          <FlatList
-            data={episodes}
+        {episodeGroups.length > 0 ? (
+          <SectionList
+            sections={episodeGroups}
             keyExtractor={(item) => item.id.toString()}
             renderItem={({ item }) => <EpisodeItem episode={item} />}
+            renderSectionHeader={({ section }) => (
+              <View style={styles.episodeSectionHeader}>
+                <Text variant="titleSmall" style={styles.episodeSectionTitle}>
+                  {section.title}
+                </Text>
+                <Text style={styles.episodeSectionCount}>
+                  {section.data.length} 集
+                </Text>
+              </View>
+            )}
             scrollEnabled={false}
+            contentContainerStyle={styles.episodeListContent}
+            stickySectionHeadersEnabled={false}
           />
         ) : (
           <Text style={styles.emptyText}>暂无剧集数据</Text>

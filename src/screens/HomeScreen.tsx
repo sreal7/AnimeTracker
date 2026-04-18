@@ -1,11 +1,19 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { View, StyleSheet, SectionList, RefreshControl } from 'react-native';
-import { Text, ActivityIndicator } from 'react-native-paper';
+import { Text, ActivityIndicator, Menu, Button } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BangumiCard } from '../components/BangumiCard';
-import { getHomeSeasonGroups } from '../services/mikanApi';
-import { Bangumi, SeasonGroup } from '../types/bangumi';
+import {
+  getHomeBangumis,
+  getAvailableSeasons,
+  groupByWeekday,
+} from '../services/mikanApi';
+import {
+  Bangumi,
+  WeekdayGroup,
+  SeasonOption,
+} from '../types/bangumi';
 import { RootStackParamList } from '../types/navigation';
 import { useThemeColors, spacing } from '../theme';
 
@@ -14,19 +22,46 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const colors = useThemeColors();
-  const [seasonGroups, setSeasonGroups] = useState<SeasonGroup[]>([]);
+
+  const [allBangumis, setAllBangumis] = useState<Bangumi[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState<SeasonOption | null>(null);
+  const [seasonOptions, setSeasonOptions] = useState<SeasonOption[]>([]);
+  const [weekdayGroups, setWeekdayGroups] = useState<WeekdayGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   useEffect(() => {
     loadBangumis();
   }, []);
 
+  // 设置默认季度为最新
+  useEffect(() => {
+    if (seasonOptions.length > 0 && !selectedSeason) {
+      setSelectedSeason(seasonOptions[0]);
+    }
+  }, [seasonOptions, selectedSeason]);
+
+  // 选择季度后，按星期分组
+  useEffect(() => {
+    if (selectedSeason && allBangumis.length > 0) {
+      const filtered = allBangumis.filter(
+        (b) => b.year === selectedSeason.year && b.season === selectedSeason.season
+      );
+      setWeekdayGroups(groupByWeekday(filtered));
+    }
+  }, [selectedSeason, allBangumis]);
+
   const loadBangumis = async () => {
     setIsLoading(true);
     try {
-      const data = await getHomeSeasonGroups();
-      setSeasonGroups(data);
+      const data = await getHomeBangumis();
+      setAllBangumis(data);
+      const options = getAvailableSeasons(data);
+      setSeasonOptions(options);
+      if (options.length > 0 && !selectedSeason) {
+        setSelectedSeason(options[0]);
+      }
     } catch (error) {
       console.error('Failed to load bangumis:', error);
     } finally {
@@ -47,10 +82,24 @@ export const HomeScreen: React.FC = () => {
     });
   };
 
+  const handleSeasonSelect = (season: SeasonOption) => {
+    setSelectedSeason(season);
+    setMenuVisible(false);
+  };
+
   const styles = useMemo(() => StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background.base,
+    },
+    header: {
+      padding: spacing.md,
+      backgroundColor: colors.background.card,
+    },
+    selectorContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
     },
     loadingContainer: {
       flex: 1,
@@ -58,19 +107,20 @@ export const HomeScreen: React.FC = () => {
       alignItems: 'center',
     },
     sectionHeader: {
-      padding: spacing.md,
+      padding: spacing.sm,
+      paddingLeft: spacing.md,
       backgroundColor: colors.background.card,
       borderBottomWidth: 1,
       borderBottomColor: colors.border.secondary,
     },
     sectionTitle: {
       color: colors.text.primary,
-      fontWeight: '700',
+      fontWeight: '600',
     },
     sectionCount: {
       color: colors.text.secondary,
       fontSize: 12,
-      marginTop: 2,
+      marginLeft: spacing.sm,
     },
     itemContent: {
       paddingHorizontal: spacing.md,
@@ -97,8 +147,37 @@ export const HomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <Menu
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          anchor={
+            <Button
+              mode="outlined"
+              onPress={() => setMenuVisible(true)}
+              icon="chevron-down"
+              contentStyle={{ flexDirection: 'row-reverse' }}
+            >
+              {selectedSeason?.label || '选择季度'}
+            </Button>
+          }
+        >
+          {seasonOptions.map((option) => (
+            <Menu.Item
+              key={`${option.year}-${option.season}`}
+              onPress={() => handleSeasonSelect(option)}
+              title={option.label}
+              titleStyle={{
+                fontWeight: selectedSeason?.year === option.year &&
+                           selectedSeason?.season === option.season ? '700' : '400',
+              }}
+            />
+          ))}
+        </Menu>
+      </View>
+
       <SectionList
-        sections={seasonGroups}
+        sections={weekdayGroups}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <View style={styles.itemContent}>
@@ -110,11 +189,11 @@ export const HomeScreen: React.FC = () => {
         )}
         renderSectionHeader={({ section }) => (
           <View style={styles.sectionHeader}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
+            <Text variant="titleSmall" style={styles.sectionTitle}>
               {section.title}
             </Text>
             <Text style={styles.sectionCount}>
-              {section.data.length} 部番剧
+              {section.data.length} 部
             </Text>
           </View>
         )}
@@ -127,7 +206,9 @@ export const HomeScreen: React.FC = () => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>暂无番剧数据</Text>
+            <Text style={styles.emptyText}>
+              {selectedSeason ? `${selectedSeason.label} 暂无番剧` : '暂无番剧数据'}
+            </Text>
           </View>
         }
         stickySectionHeadersEnabled

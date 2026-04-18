@@ -1,4 +1,16 @@
-import { Bangumi, Episode, SubtitleGroup, SeasonGroup, SeasonKey } from '../types/bangumi';
+import {
+  Bangumi,
+  Episode,
+  SubtitleGroup,
+  SeasonGroup,
+  SeasonKey,
+  Weekday,
+  WeekdayGroup,
+  EpisodeGroup,
+  SeasonOption,
+  WEEKDAY_NAMES,
+  WEEKDAY_ORDER,
+} from '../types/bangumi';
 import axios from 'axios';
 
 // 蜜柑计划API服务
@@ -15,6 +27,88 @@ const seasonNames: Record<SeasonKey, string> = {
 // 根据年份和季度生成标题
 export const getSeasonTitle = (year: number, season: SeasonKey): string => {
   return `${year}年${seasonNames[season]}番组`;
+};
+
+// 获取当前季度
+export const getCurrentSeason = (): { year: number; season: SeasonKey } => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0-11
+
+  // 日本动画季度划分：冬季(1-3月)、春季(4-6月)、夏季(7-9月)、秋季(10-12月)
+  if (month >= 0 && month <= 2) return { year, season: 'winter' };
+  if (month >= 3 && month <= 5) return { year, season: 'spring' };
+  if (month >= 6 && month <= 8) return { year, season: 'summer' };
+  return { year, season: 'fall' };
+};
+
+// 获取所有可用季度选项
+export const getAvailableSeasons = (bangumis: Bangumi[]): SeasonOption[] => {
+  const seasonsMap: Map<string, { year: number; season: SeasonKey }> = new Map();
+
+  bangumis.forEach((b) => {
+    if (b.year && b.season) {
+      const key = `${b.year}-${b.season}`;
+      seasonsMap.set(key, { year: b.year, season: b.season });
+    }
+  });
+
+  const seasonOrder: SeasonKey[] = ['winter', 'fall', 'summer', 'spring'];
+  return Array.from(seasonsMap.values())
+    .sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return seasonOrder.indexOf(a.season) - seasonOrder.indexOf(b.season);
+    })
+    .map((s) => ({
+      ...s,
+      label: getSeasonTitle(s.year, s.season),
+    }));
+};
+
+// 按星期分组番剧（周一到周日排序）
+export const groupByWeekday = (bangumis: Bangumi[]): WeekdayGroup[] => {
+  const groups: Map<Weekday, Bangumi[]> = new Map();
+
+  // 初始化所有星期
+  for (let i = 0; i <= 6; i++) {
+    groups.set(i as Weekday, []);
+  }
+
+  bangumis.forEach((bangumi) => {
+    if (bangumi.weekday !== undefined) {
+      groups.get(bangumi.weekday)!.push(bangumi);
+    }
+  });
+
+  // 按周一到周日排序返回
+  return WEEKDAY_ORDER
+    .map((weekday) => ({
+      weekday,
+      title: WEEKDAY_NAMES[weekday],
+      data: groups.get(weekday)!,
+    }))
+    .filter((g) => g.data.length > 0);
+};
+
+// 按字幕组分组剧集
+export const groupEpisodesBySubtitleGroup = (episodes: Episode[]): EpisodeGroup[] => {
+  const groups: Map<string, Episode[]> = new Map();
+
+  episodes.forEach((episode) => {
+    const group = episode.subtitleGroup || '未知字幕组';
+    if (!groups.has(group)) {
+      groups.set(group, []);
+    }
+    groups.get(group)!.push(episode);
+  });
+
+  return Array.from(groups.entries())
+    .map(([subtitleGroup, data]) => ({
+      subtitleGroup,
+      title: subtitleGroup,
+      data,
+    }))
+    .sort((a, b) => a.subtitleGroup.localeCompare(b.subtitleGroup));
 };
 
 // 将番剧按季度分组
@@ -54,98 +148,10 @@ const formatFileSize = (bytes: number): string => {
 
 // 模拟数据（默认使用）
 const mockBangumis: Bangumi[] = [
-  {
-    id: 1,
-    name: '葬送的芙莉莲',
-    cover: 'https://myanimelist.net/images/anime/1015/138006l.jpg',
-    subtitleGroup: 'ANIME/LoliHouse',
-    airDate: '2024年10月',
-    status: 'ongoing',
-    description: '勇者一行人在打败魔王后，结束了长达十年的冒险旅程。精灵魔法使芙莉莲寿命长达千年，她将与人类的十年冒险视为短暂插曲，直到勇者辛美尔去世才真正理解人类。',
-    year: 2024,
-    season: 'fall',
-  },
-  {
-    id: 2,
-    name: '药屋少女的呢喃 第二季',
-    cover: 'https://myanimelist.net/images/anime/1059/152815l.jpg',
-    subtitleGroup: 'ANIME',
-    airDate: '2025年1月',
-    status: 'ongoing',
-    description: '药师少女猫猫在后宫中运用医学知识解开各种谜团的故事。第二季继续讲述猫猫的宫廷冒险。',
-    year: 2025,
-    season: 'winter',
-  },
-  {
-    id: 3,
-    name: '迷宫饭',
-    cover: 'https://myanimelist.net/images/anime/1711/142478l.jpg',
-    subtitleGroup: 'ANIME/VCB-Studio',
-    airDate: '2024年1月',
-    status: 'ongoing',
-    description: '冒险者莱俄斯和他的队伍在迷宫深处遭遇红龙，全员覆灭。莱俄斯的妹妹法琳被龙吃掉，为了救回妹妹，他们必须深入迷宫，用魔物做成料理来生存。',
-    year: 2024,
-    season: 'winter',
-  },
-  {
-    id: 4,
-    name: '地。 -关于地球的运动-',
-    cover: 'https://myanimelist.net/images/anime/1749/145922l.jpg',
-    subtitleGroup: 'ANIME',
-    airDate: '2024年10月',
-    status: 'ongoing',
-    description: '故事发生在P王国，一个异端思想会被处以火刑的时代。人们仰望星空，探索地球运动的真理。',
-    year: 2024,
-    season: 'fall',
-  },
-  {
-    id: 5,
-    name: '夏日重现',
-    cover: 'https://myanimelist.net/images/anime/1120/120796l.jpg',
-    subtitleGroup: 'ANIME/LoliHouse',
-    airDate: '2022年4月',
-    status: 'completed',
-    description: '网代慎平听闻青梅竹马小舟潮逝世的消息，回到故乡和歌山市日都岛参加葬礼。却发现岛上流传着"影子"的传说。',
-    year: 2022,
-    season: 'spring',
-  },
-  {
-    id: 6,
-    name: '间谍过家家 第二季',
-    cover: 'https://myanimelist.net/images/anime/1441/122795l.jpg',
-    subtitleGroup: 'ANIME',
-    airDate: '2023年10月',
-    status: 'ongoing',
-    description: '黄昏为了执行任务组建了临时家庭，却意外收获了真正的亲情。阿尼亚的各种搞笑冒险。',
-    year: 2023,
-    season: 'fall',
-  },
-  {
-    id: 7,
-    name: '辉夜大小姐想让我告白 第四季',
-    cover: 'https://myanimelist.net/images/anime/1935/93606l.jpg',
-    subtitleGroup: 'ANIME',
-    airDate: '2022年4月',
-    status: 'completed',
-    description: '学生会长白银御行与副会长四宫辉夜之间的恋爱头脑战继续上演。',
-    year: 2022,
-    season: 'spring',
-  },
-  {
-    id: 8,
-    name: '进击的巨人 最终季',
-    cover: 'https://myanimelist.net/images/anime/10/47347l.jpg',
-    subtitleGroup: 'VCB-Studio',
-    airDate: '2024年',
-    status: 'completed',
-    description: '人类与巨人的最终决战，艾伦与调查兵团的命运将如何落幕。',
-    year: 2024,
-    season: 'fall',
-  },
   // 2026年春季番组（最新）
   {
     id: 9,
-    name: '石纪元 第四季',
+    name: '石纪元 新石纪 第四季',
     cover: 'https://myanimelist.net/images/anime/1910/138282l.jpg',
     subtitleGroup: 'ANIME',
     airDate: '2026年4月',
@@ -153,6 +159,7 @@ const mockBangumis: Bangumi[] = [
     description: '千空与科学团队继续在石纪元世界中探索科技的奥秘。',
     year: 2026,
     season: 'spring',
+    weekday: 4, // 周四
   },
   {
     id: 10,
@@ -164,6 +171,7 @@ const mockBangumis: Bangumi[] = [
     description: '昴继续在异世界中奋斗，面对新的挑战和考验。',
     year: 2026,
     season: 'spring',
+    weekday: 3, // 周三
   },
   {
     id: 11,
@@ -175,6 +183,68 @@ const mockBangumis: Bangumi[] = [
     description: '利姆露继续壮大他的魔国联邦，面对更多强敌。',
     year: 2026,
     season: 'spring',
+    weekday: 2, // 周二
+  },
+  {
+    id: 14,
+    name: '我推的孩子 第二季',
+    cover: 'https://myanimelist.net/images/anime/1880/142928l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2026年4月',
+    status: 'ongoing',
+    description: '阿奎和阿利亚继续在演艺圈中成长的故事。',
+    year: 2026,
+    season: 'spring',
+    weekday: 6, // 周六
+  },
+  {
+    id: 15,
+    name: '电锯人 第二季',
+    cover: 'https://myanimelist.net/images/anime/1800/142822l.jpg',
+    subtitleGroup: 'ANIME/VCB-Studio',
+    airDate: '2026年4月',
+    status: 'ongoing',
+    description: '电次继续与恶魔战斗，更多黑暗故事。',
+    year: 2026,
+    season: 'spring',
+    weekday: 1, // 周一
+  },
+  {
+    id: 16,
+    name: '蓝色监狱 第二季',
+    cover: 'https://myanimelist.net/images/anime/1700/140022l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2026年4月',
+    status: 'ongoing',
+    description: '洁士郎继续在蓝色监狱中追求成为世界第一前锋。',
+    year: 2026,
+    season: 'spring',
+    weekday: 5, // 周五
+  },
+  // 2025年冬季番组
+  {
+    id: 2,
+    name: '药屋少女的呢喃 第二季',
+    cover: 'https://myanimelist.net/images/anime/1059/152815l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2025年1月',
+    status: 'ongoing',
+    description: '药师少女猫猫在后宫中运用医学知识解开各种谜团的故事。',
+    year: 2025,
+    season: 'winter',
+    weekday: 6, // 周六
+  },
+  {
+    id: 3,
+    name: '迷宫饭',
+    cover: 'https://myanimelist.net/images/anime/1711/142478l.jpg',
+    subtitleGroup: 'ANIME/VCB-Studio',
+    airDate: '2025年1月',
+    status: 'ongoing',
+    description: '冒险者莱俄斯深入迷宫，用魔物做成料理来生存。',
+    year: 2025,
+    season: 'winter',
+    weekday: 4, // 周四
   },
   // 2025年秋季番组
   {
@@ -187,6 +257,7 @@ const mockBangumis: Bangumi[] = [
     description: '柱们进行特训，为最终决战做准备。',
     year: 2025,
     season: 'fall',
+    weekday: 0, // 周日
   },
   // 2025年春季番组
   {
@@ -199,6 +270,95 @@ const mockBangumis: Bangumi[] = [
     description: '咒术师与诅咒师的战斗进入白热化阶段。',
     year: 2025,
     season: 'spring',
+    weekday: 4, // 周四
+  },
+  // 2024年秋季番组
+  {
+    id: 1,
+    name: '葬送的芙莉莲',
+    cover: 'https://myanimelist.net/images/anime/1015/138006l.jpg',
+    subtitleGroup: 'ANIME/LoliHouse',
+    airDate: '2024年10月',
+    status: 'ongoing',
+    description: '勇者一行人在打败魔王后，结束了长达十年的冒险旅程。',
+    year: 2024,
+    season: 'fall',
+    weekday: 5, // 周五
+  },
+  {
+    id: 4,
+    name: '地。 -关于地球的运动-',
+    cover: 'https://myanimelist.net/images/anime/1749/145922l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2024年10月',
+    status: 'ongoing',
+    description: '故事发生在P王国，人们仰望星空，探索地球运动的真理。',
+    year: 2024,
+    season: 'fall',
+    weekday: 0, // 周日
+  },
+  {
+    id: 8,
+    name: '进击的巨人 最终季',
+    cover: 'https://myanimelist.net/images/anime/10/47347l.jpg',
+    subtitleGroup: 'VCB-Studio',
+    airDate: '2024年',
+    status: 'completed',
+    description: '人类与巨人的最终决战，艾伦与调查兵团的命运将如何落幕。',
+    year: 2024,
+    season: 'fall',
+    weekday: 1, // 周一
+  },
+  // 2024年冬季番组
+  {
+    id: 17,
+    name: '物语系列 OFF & MONSTER Season',
+    cover: 'https://myanimelist.net/images/anime/1900/142298l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2024年1月',
+    status: 'ongoing',
+    description: '阿良良木历的物语继续上演。',
+    year: 2024,
+    season: 'winter',
+    weekday: 2, // 周二
+  },
+  // 2023年秋季番组
+  {
+    id: 6,
+    name: '间谍过家家 第二季',
+    cover: 'https://myanimelist.net/images/anime/1441/122795l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2023年10月',
+    status: 'ongoing',
+    description: '黄昏为了执行任务组建了临时家庭，却意外收获了真正的亲情。',
+    year: 2023,
+    season: 'fall',
+    weekday: 6, // 周六
+  },
+  // 2022年春季番组
+  {
+    id: 5,
+    name: '夏日重现',
+    cover: 'https://myanimelist.net/images/anime/1120/120796l.jpg',
+    subtitleGroup: 'ANIME/LoliHouse',
+    airDate: '2022年4月',
+    status: 'completed',
+    description: '网代慎平回到故乡日都岛参加葬礼，却发现岛上流传着"影子"的传说。',
+    year: 2022,
+    season: 'spring',
+    weekday: 5, // 周五
+  },
+  {
+    id: 7,
+    name: '辉夜大小姐想让我告白 第四季',
+    cover: 'https://myanimelist.net/images/anime/1935/93606l.jpg',
+    subtitleGroup: 'ANIME',
+    airDate: '2022年4月',
+    status: 'completed',
+    description: '学生会长白银御行与副会长四宫辉夜之间的恋爱头脑战继续上演。',
+    year: 2022,
+    season: 'spring',
+    weekday: 6, // 周六
   },
 ];
 
