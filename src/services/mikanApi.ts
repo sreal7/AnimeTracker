@@ -17,7 +17,7 @@ const mockBangumis: Bangumi[] = [
   {
     id: 1,
     name: '葬送的芙莉莲',
-    cover: 'https://picsum.photos/seed/frieren/400/300',
+    cover: 'https://myanimelist.net/images/anime/1015/138006l.jpg',
     subtitleGroup: 'ANIME/LoliHouse',
     airDate: '2024年10月',
     status: 'ongoing',
@@ -26,7 +26,7 @@ const mockBangumis: Bangumi[] = [
   {
     id: 2,
     name: '药屋少女的呢喃 第二季',
-    cover: 'https://picsum.photos/seed/kusuriya/400/300',
+    cover: 'https://myanimelist.net/images/anime/1059/152815l.jpg',
     subtitleGroup: 'ANIME',
     airDate: '2025年1月',
     status: 'ongoing',
@@ -35,7 +35,7 @@ const mockBangumis: Bangumi[] = [
   {
     id: 3,
     name: '迷宫饭',
-    cover: 'https://picsum.photos/seed/dungeon/400/300',
+    cover: 'https://myanimelist.net/images/anime/1711/142478l.jpg',
     subtitleGroup: 'ANIME/VCB-Studio',
     airDate: '2024年1月',
     status: 'ongoing',
@@ -44,7 +44,7 @@ const mockBangumis: Bangumi[] = [
   {
     id: 4,
     name: '地。 -关于地球的运动-',
-    cover: 'https://picsum.photos/seed/chi/400/300',
+    cover: 'https://myanimelist.net/images/anime/1749/145922l.jpg',
     subtitleGroup: 'ANIME',
     airDate: '2024年10月',
     status: 'ongoing',
@@ -53,7 +53,7 @@ const mockBangumis: Bangumi[] = [
   {
     id: 5,
     name: '夏日重现',
-    cover: 'https://picsum.photos/seed/summer/400/300',
+    cover: 'https://myanimelist.net/images/anime/1120/120796l.jpg',
     subtitleGroup: 'ANIME/LoliHouse',
     airDate: '2022年4月',
     status: 'completed',
@@ -62,7 +62,7 @@ const mockBangumis: Bangumi[] = [
   {
     id: 6,
     name: '间谍过家家 第二季',
-    cover: 'https://picsum.photos/seed/spyfamily/400/300',
+    cover: 'https://myanimelist.net/images/anime/1441/122795l.jpg',
     subtitleGroup: 'ANIME',
     airDate: '2023年10月',
     status: 'ongoing',
@@ -71,7 +71,7 @@ const mockBangumis: Bangumi[] = [
   {
     id: 7,
     name: '辉夜大小姐想让我告白 第四季',
-    cover: 'https://picsum.photos/seed/kaguya/400/300',
+    cover: 'https://myanimelist.net/images/anime/1935/93606l.jpg',
     subtitleGroup: 'ANIME',
     airDate: '2022年4月',
     status: 'completed',
@@ -80,7 +80,7 @@ const mockBangumis: Bangumi[] = [
   {
     id: 8,
     name: '进击的巨人 最终季',
-    cover: 'https://picsum.photos/seed/titan/400/300',
+    cover: 'https://myanimelist.net/images/anime/10/47347l.jpg',
     subtitleGroup: 'VCB-Studio',
     airDate: '2024年',
     status: 'completed',
